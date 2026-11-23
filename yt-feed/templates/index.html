@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Feed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap" rel="stylesheet">
+<script>
+  (function () {
+    var t = localStorage.getItem("theme");
+    if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+<style>
+  :root {
+    --paper: #F4F6FB; --surface: #FFFFFF; --ink: #1B1F3B; --muted: #5F6685;
+    --line: #D9DEEB; --marker: #FFE15D; --on-marker: #1B1F3B; --red: #E0425B; --skel: #E6EAF4;
+  }
+  [data-theme="dark"] {
+    --paper: #151A2E; --surface: #1F2644; --ink: #ECEFFA; --muted: #9AA3C4;
+    --line: #2E3658; --marker: #FFE15D; --on-marker: #1B1F3B; --red: #FF6B81; --skel: #262E50;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 24px 40px; background: var(--paper); color: var(--ink);
+    font-family: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-optical-sizing: auto; line-height: 1.4;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  /* ----- header ----- */
+  #top { position: sticky; top: 0; z-index: 10; background: var(--paper); border-bottom: 1px solid var(--line);
+         margin: 0 -24px; padding: 14px 24px 0; }
+  header { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; padding-bottom: 10px; }
+  #nav { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .navbtn { background: none; border: none; padding: 8px 12px; font-size: 15px; font-weight: 500; color: var(--muted);
+            border-radius: 6px; white-space: nowrap; }
+  .navbtn:hover { color: var(--ink); }
+  .navbtn.active { color: var(--ink); font-weight: 700;
+                   background: linear-gradient(transparent 58%, var(--marker) 58%, var(--marker) 92%, transparent 92%); }
+  #topicBtn { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 4px 10px;
+              border-radius: 10px; font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+  #topicBtn:hover { background: var(--surface); }
+  #topicBtn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.5; }
+  #tools { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+  #searchBox { position: relative; flex: 1; max-width: 340px; }
+  .searchIcon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px;
+                stroke: var(--muted); fill: none; stroke-width: 2; pointer-events: none; }
+  #search { width: 100%; padding: 10px 14px 10px 38px; border-radius: 999px; border: 1.5px solid var(--line);
+            background: var(--surface); color: var(--ink); font: inherit; font-size: 14px; }
+  #search:focus { outline: none; border-color: var(--ink); }
+  #themeBtn { width: 40px; height: 40px; flex: none; border-radius: 50%; border: 1.5px solid var(--line);
+              background: var(--surface); display: grid; place-items: center; }
+  #themeBtn svg { width: 18px; height: 18px; stroke: var(--ink); fill: none; stroke-width: 2; }
+  #sugg { display: none; position: absolute; left: 0; right: 0; top: calc(100% + 6px); background: var(--surface);
+          border: 1px solid var(--line); border-radius: 14px; overflow: hidden; z-index: 70;
+          box-shadow: 0 8px 24px rgba(20, 25, 60, .14); }
+  .sugg-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; font-size: 14px; cursor: pointer; }
+  .sugg-item:hover { background: var(--paper); }
+  .sugg-item svg { width: 15px; height: 15px; flex: none; stroke: var(--muted); fill: none; stroke-width: 2; }
+  .sugg-item .label { flex: 1; }
+  .sugg-item .x { color: var(--muted); padding: 0 4px; }
+  #tabs { display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 12px; scrollbar-width: none; }
+  .pill { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px;
+          font-size: 14px; white-space: nowrap; }
+  .pill:hover { border-color: var(--ink); }
+  .pill.active { background: var(--marker); color: var(--on-marker); border-color: var(--marker); font-weight: 600; }
+
+  /* ----- heading and filters ----- */
+  #filterBar { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 14px; }
+  #filterBar:empty { display: none; }
+  .filterChip { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1.5px solid var(--ink);
+                border-radius: 999px; padding: 4px 6px 4px 14px; font-size: 14px; }
+  .filterChip button { width: 22px; height: 22px; border: none; border-radius: 50%; background: var(--ink);
+                       color: var(--paper); font-size: 11px; line-height: 1; display: grid; place-items: center; }
+  #headRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px 0 16px; }
+  #heading { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+  #shuffleBtn { border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px; padding: 6px 16px; font-size: 14px; }
+  #shuffleBtn:hover { border-color: var(--ink); }
+
+  /* ----- video grid ----- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 28px 20px; }
+  .card { min-width: 0; }
+  .thumbWrap { position: relative; }
+  .thumb { position: relative; display: block; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; background: var(--skel); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .badge { position: absolute; right: 8px; bottom: 8px; background: rgba(20, 25, 46, .88); color: #fff;
+           font-size: 12px; font-weight: 600; padding: 2px 7px; border-radius: 6px; }
+  .chips { position: absolute; top: 8px; right: 8px; display: flex; gap: 6px; }
+  .chip { width: 34px; height: 34px; border: none; border-radius: 50%; background: rgba(20, 25, 46, .72);
+          color: #fff; display: grid; place-items: center; }
+  .chip:hover { background: rgba(20, 25, 46, .95); }
+  .chip svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .chip.like.on { background: var(--red); }
+  .chip.like.on svg { fill: currentColor; }
+  .chip.later.on { background: var(--marker); color: var(--on-marker); }
+  .info { padding: 10px 2px 0; }
+  .title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+           color: var(--ink); text-decoration: none; font-weight: 600; font-size: 15.5px; line-height: 1.3; }
+  .title:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .channel { margin-top: 6px; font-size: 14px; font-weight: 500; }
+  .stats { margin-top: 2px; font-size: 13px; color: var(--muted); display: flex; gap: 10px; }
+  mark { background: var(--marker); color: var(--on-marker); border-radius: 3px; padding: 0 2px; }
+  .skel .box { aspect-ratio: 16 / 9; border-radius: 12px; background: var(--skel); }
+  .skel .line { height: 12px; border-radius: 6px; background: var(--skel); margin-top: 12px; }
+  .skel .line.short { width: 60%; }
+  .skel .box, .skel .line { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  #status { text-align: center; color: var(--muted); padding: 36px 12px; font-size: 15px; }
+  #toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); background: var(--ink);
+           color: var(--paper); padding: 10px 18px; border-radius: 999px; font-size: 14px; opacity: 0;
+           pointer-events: none; transition: opacity .2s, transform .2s; z-index: 80; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ----- topic drawer ----- */
+  #overlay { display: none; position: fixed; inset: 0; background: rgba(15, 18, 40, .5); z-index: 50; }
+  #overlay.open { display: block; }
+  #drawer { display: none; position: fixed; top: 0; left: 0; height: 100vh; z-index: 60; }
+  #drawer.open { display: flex; animation: slide .18s ease-out; }
+  @keyframes slide { from { transform: translateX(-16px); opacity: 0; } }
+  .panel { width: min(290px, 50vw); height: 100vh; overflow-y: auto; background: var(--surface);
+           border-right: 1px solid var(--line); padding: 14px 10px; }
+  #panel2 { display: none; background: var(--paper); }
+  .panelHead { display: flex; align-items: center; justify-content: space-between; padding: 4px 10px 12px; }
+  .panelHead h3 { margin: 0; font-size: 17px; font-weight: 700; }
+  .panelHead button { border: none; background: none; font-size: 18px; color: var(--muted); }
+  .item { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 10px;
+          cursor: pointer; font-size: 15px; }
+  .item:hover { background: var(--line); }
+  .item .count { color: var(--muted); font-size: 13px; }
+  .item.sel, .item.sel:hover { background: var(--marker); color: var(--on-marker); font-weight: 600; }
+  .item.sel .count { color: var(--on-marker); opacity: .7; }
+
+  @media (max-width: 860px) {
+    body { padding: 0 14px 40px; }
+    #top { margin: 0 -14px; padding: 12px 14px 0; }
+    header { grid-template-columns: 1fr; gap: 10px; }
+    #topicBtn { order: 1; justify-self: start; font-size: 26px; }
+    #tools { order: 2; }
+    #searchBox { max-width: none; }
+    #nav { order: 3; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  /* ===== v3: binder tabs, notebook hero, quieter cards ===== */
+  body { padding: 0 28px 48px; }
+  #top { margin: 0 -28px; padding: 12px 28px 0; }
+  header { display: flex; align-items: center; gap: 18px; padding-bottom: 12px; }
+  #brand { display: flex; align-items: center; gap: 10px; background: none; border: none; padding: 0;
+           font-size: 21px; font-weight: 800; letter-spacing: -0.02em; }
+  .mark { width: 32px; height: 32px; border-radius: 9px; background: var(--marker); color: var(--on-marker);
+          display: grid; place-items: center; font-size: 18px; transform: rotate(-6deg); }
+  #nav { margin-left: 4px; }
+  #tools { flex: 1; justify-content: flex-end; }
+  #searchBox { max-width: 420px; }
+  #search { padding-top: 11px; padding-bottom: 11px; }
+  #topicBtn { gap: 8px; border: 1.5px solid var(--line); background: var(--surface); border-radius: 999px;
+              padding: 9px 16px; font-size: 14px; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
+  #topicBtn:hover { border-color: var(--ink); background: var(--surface); }
+  #topicBtn svg { width: 16px; height: 16px; stroke-width: 2; }
+  #shelf { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: -1px; }
+  .stab { flex: none; border: 1px solid var(--line); border-bottom: none; border-radius: 10px 10px 0 0;
+          padding: 8px 15px 9px; background: var(--paper); color: var(--muted); font-size: 14px; font-weight: 500; }
+  .stab:hover { color: var(--ink); background: var(--surface); }
+  .stab.on { background: var(--ink); border-color: var(--ink); color: var(--paper); font-weight: 600; }
+
+  #hero { position: relative; margin: 24px 0 6px; padding: 38px 28px 26px 78px; border: 1px solid var(--line);
+          border-radius: 16px; overflow: hidden; background-color: var(--surface);
+          background-image: repeating-linear-gradient(transparent 0 31px, var(--skel) 31px 32px);
+          background-position: 0 6px; }
+  #hero::before { content: ""; position: absolute; left: 54px; top: 0; bottom: 0; width: 2px; background: var(--red); opacity: .4; }
+  #hero h1 { margin: 0; font-size: 32px; line-height: 32px; font-weight: 800; letter-spacing: -0.02em; max-width: 22ch; }
+  #hero p { margin: 14px 0 0; font-size: 15px; line-height: 32px; color: var(--muted); }
+  #hero p:empty { display: none; }
+
+  #headRow { margin: 24px 0 12px; }
+  #tabs { margin-bottom: 20px; padding: 2px 0; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 32px 22px; }
+  .thumb { border-radius: 14px; }
+  .thumb img { transition: transform .25s ease-out; }
+  .card:hover .thumb img { transform: scale(1.04); }
+  .chips { opacity: 0; transition: opacity .15s; }
+  .card:hover .chips, .chips:focus-within, .chips:has(.on) { opacity: 1; }
+  @media (hover: none) { .chips { opacity: 1; } }
+  .info { display: flex; gap: 11px; padding: 12px 0 0; }
+  .avatar { flex: none; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+            color: #fff; font-size: 15px; font-weight: 700; }
+  .txt { min-width: 0; }
+  .channel { margin-top: 4px; font-size: 13.5px; font-weight: 500; color: var(--muted); }
+  .stats { margin-top: 1px; }
+
+  @media (max-width: 860px) {
+    body { padding: 0 14px 40px; }
+    #top { margin: 0 -14px; padding: 12px 14px 0; }
+    header { flex-wrap: wrap; gap: 10px; }
+    #brand { order: 1; }
+    #tools { order: 2; flex-basis: 100%; justify-content: flex-start; }
+    #nav { order: 3; flex-basis: 100%; margin-left: 0; }
+    #hero { padding: 30px 18px 18px 54px; }
+    #hero::before { left: 36px; }
+    #hero h1 { font-size: 26px; line-height: 32px; }
+  }
+
+  /* ===== v4: subject switcher ===== */
+  header { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; }
+  #tools { justify-content: flex-end; }
+  #subjectWrap { position: relative; }
+  #subjectBtn { display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 4px 12px;
+                border-radius: 12px; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; white-space: nowrap; }
+  #subjectBtn:hover, #subjectBtn[aria-expanded="true"] { background: var(--surface); }
+  #subjectBtn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2.5; transition: transform .15s; }
+  #subjectBtn[aria-expanded="true"] svg { transform: rotate(180deg); }
+  #subjectMenu { display: none; position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%);
+                 width: 300px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+                 padding: 6px; box-shadow: 0 12px 32px rgba(20, 25, 60, .18); z-index: 70; }
+  #subjectMenu.open { display: block; }
+  .sopt { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: none;
+          background: none; text-align: left; padding: 10px 12px; border-radius: 9px; font-size: 15px; }
+  .sopt:hover { background: var(--paper); }
+  .sopt.sel, .sopt.sel:hover { background: var(--marker); color: var(--on-marker); font-weight: 700; }
+  .soon { font-size: 12px; font-weight: 500; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .sopt.sel .soon { color: var(--on-marker); border-color: currentColor; }
+  #headBtns { display: flex; gap: 8px; flex: none; }
+  #heading { min-width: 0; }
+  @media (max-width: 1100px) {
+    header { display: flex; flex-wrap: wrap; gap: 10px; }
+    #subjectWrap { order: 1; flex-basis: 100%; }
+    #subjectBtn { padding-left: 0; font-size: 26px; }
+    #subjectMenu { left: 0; transform: none; width: min(300px, 100%); }
+    #tools { order: 2; flex-basis: 100%; justify-content: flex-start; }
+    #nav { order: 3; flex-basis: 100%; margin-left: 0; }
+    #topicBtn { order: 0; font-size: 14px; }
+  }
+
+  #subrow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  #subrow:empty { display: none; }
+</style>
+</head>
+<body>
+  <div id="top">
+    <header>
+      <nav id="nav" aria-label="Your library"></nav>
+      <div id="subjectWrap">
+        <button id="subjectBtn" aria-haspopup="true" aria-expanded="false" aria-label="Choose subject"><span id="subjectName">Machine Learning</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div id="subjectMenu" role="menu"></div>
+      </div>
+      <div id="tools">
+        <div id="searchBox">
+          <svg class="searchIcon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input id="search" type="search" autocomplete="off" placeholder="Search videos  (press /)" aria-label="Search videos">
+          <div id="sugg"></div>
+        </div>
+        <button id="themeBtn" title="Switch light or dark theme" aria-label="Switch light or dark theme">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>
+        </button>
+      </div>
+    </header>
+    <div id="shelf" aria-label="Topics"></div>
+  </div>
+
+  <main>
+    <section id="hero"><h1 id="hello"></h1><p id="sub"></p></section>
+    <div id="subrow" aria-label="Subtopics"></div>
+    <div id="filterBar"></div>
+    <div id="headRow">
+      <h2 id="heading"></h2>
+      <div id="headBtns">
+        <button id="topicBtn" aria-haspopup="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>Browse topics</button>
+        <button id="shuffleBtn">Shuffle</button>
+      </div>
+    </div>
+    <div id="tabs"></div>
+    <div class="grid" id="grid"></div>
+    <div id="status" aria-live="polite"></div>
+  </main>
+
+  <div id="toast" role="status"></div>
+  <div id="overlay"></div>
+  <div id="drawer"><div class="panel" id="panel1"></div><div class="panel" id="panel2"></div></div>
+
+  <script>
+    const TABS = [
+      ["shorts", "Shorts"], ["videos", "Videos"], ["u5", "Under 5 min"],
+      ["5-10", "5-10 min"], ["10-30", "10-30 min"], ["30-60", "30-60 min"], ["60plus", "1 hr+"],
+    ];
+    const NAV = [["home", "Home"], ["history", "History"], ["liked", "Liked"], ["later", "Watch later"], ["papers", "Papers"]];
+    const HEADINGS = { history: "Watch history", liked: "Liked videos", later: "Watch later" };
+    const EMPTY = {
+      history: "Nothing watched yet. Open a video and it will show up here.",
+      liked: "No liked videos yet. Tap the heart on any video to keep it here.",
+      later: "Nothing saved yet. Tap the clock on a video to queue it for later.",
+    };
+    const ICON = {
+      heart: '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>',
+      clock: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    };
+    const LISTS = {
+      liked: { cls: "like", icon: ICON.heart, on: "Remove like", off: "Like",
+               toastOn: "Added to liked videos", toastOff: "Removed from liked videos" },
+      later: { cls: "later", icon: ICON.clock, on: "Remove from watch later", off: "Save to watch later",
+               toastOn: "Saved to watch later", toastOff: "Removed from watch later" },
+    };
+    const PER_PAGE = 24;
+
+    let uid = localStorage.getItem("uid");
+    if (!uid) {
+      uid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Math.random()).slice(2);
+      localStorage.setItem("uid", uid);
+    }
+    let view = "home", tab = "videos", topic = "", sub = "", q = "";
+    let page = 1, seed = 0, loading = false, done = false, gen = 0;
+    let tree = [], openTopic = null, toastTimer = null;
+
+    const $ = id => document.getElementById(id);
+    const grid = $("grid"), statusEl = $("status"), tabsBar = $("tabs"), navBar = $("nav");
+    const filterBar = $("filterBar"), headingEl = $("heading"), shuffleBtn = $("shuffleBtn");
+    const searchInput = $("search"), searchBox = $("searchBox"), suggBox = $("sugg");
+    const overlay = $("overlay"), drawer = $("drawer"), panel1 = $("panel1"), panel2 = $("panel2");
+    const toastEl = $("toast");
+
+    function div(cls) { const d = document.createElement("div"); d.className = cls; return d; }
+
+    function toast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toastEl.classList.remove("show"), 2000);
+    }
+
+    function fmtViews(n) {
+      if (n >= 1e9) return (n / 1e9).toFixed(1) + "B views";
+      if (n >= 1e6) return (n / 1e6).toFixed(1) + "M views";
+      if (n >= 1e3) return (n / 1e3).toFixed(1) + "K views";
+      return n + " views";
+    }
+    function fmtDuration(s) {
+      const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+      const pad = x => String(x).padStart(2, "0");
+      return h > 0 ? h + ":" + pad(m) + ":" + pad(sec) : m + ":" + pad(sec);
+    }
+    function ago(iso) {
+      const days = Math.floor((Date.now() - new Date(iso)) / 86400000);
+      if (days < 1) return "today";
+      if (days < 30) return days + (days === 1 ? " day ago" : " days ago");
+      if (days < 365) { const m = Math.max(1, Math.floor(days / 30)); return m + (m === 1 ? " month ago" : " months ago"); }
+      const y = Math.floor(days / 365);
+      return y + (y === 1 ? " year ago" : " years ago");
+    }
+
+    function track(videoId) {
+      fetch("/api/history", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid, video_id: videoId }), keepalive: true,
+      });
+    }
+
+    // put search words in a yellow marker inside a title (safe: no innerHTML)
+    function highlight(el, text) {
+      const words = q.toLowerCase().split(/\s+/).filter(w => w.length > 1);
+      if (view !== "home" || !words.length) { el.textContent = text; return; }
+      const rx = new RegExp("(" + words.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "ig");
+      text.split(rx).forEach((part, i) => {
+        if (i % 2 === 1) { const m = document.createElement("mark"); m.textContent = part; el.appendChild(m); }
+        else el.appendChild(document.createTextNode(part));
+      });
+    }
+
+    function endMessage() {
+      if (grid.children.length) return "You’ve reached the end";
+      if (view !== "home") return EMPTY[view];
+      return q ? "No videos match “" + q + "”. Try fewer words or a different spelling."
+               : "No videos in this section yet.";
+    }
+
+    function listBtn(v, list, card) {
+      const cfg = LISTS[list];
+      const b = document.createElement("button");
+      b.className = "chip " + cfg.cls;
+      b.innerHTML = cfg.icon;
+      const paint = () => {
+        const label = v[list] ? cfg.on : cfg.off;
+        b.classList.toggle("on", !!v[list]);
+        b.title = label;
+        b.setAttribute("aria-label", label);
+      };
+      paint();
+      b.onclick = async () => {
+        const res = await fetch("/api/toggle", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid, video_id: v.video_id, list }),
+        });
+        const data = await res.json();
+        v[list] = data.on;
+        paint();
+        toast(data.on ? cfg.toastOn : cfg.toastOff);
+        if (!data.on && view === list) {
+          card.remove();
+          if (!grid.children.length && done) statusEl.textContent = endMessage();
+        }
+      };
+      return b;
+    }
+
+    function makeCard(v) {
+      const isShort = v.duration <= 60;
+      const url = (isShort ? "https://www.youtube.com/shorts/" : "https://www.youtube.com/watch?v=") + v.video_id;
+      const card = div("card");
+
+      const wrap = div("thumbWrap");
+      const a = document.createElement("a");
+      a.className = "thumb"; a.href = url; a.target = "_blank"; a.rel = "noopener";
+      a.setAttribute("aria-label", v.title);
+      a.onclick = () => track(v.video_id);
+      const img = document.createElement("img");
+      img.src = v.thumbnail; img.alt = ""; img.loading = "lazy";
+      const badge = div("badge");
+      badge.textContent = isShort ? "Short" : fmtDuration(v.duration);
+      a.append(img, badge);
+      const chips = div("chips");
+      chips.append(listBtn(v, "liked", card), listBtn(v, "later", card));
+      wrap.append(a, chips);
+
+      const info = div("info");
+      const title = document.createElement("a");
+      title.className = "title"; title.href = url; title.target = "_blank"; title.rel = "noopener";
+      title.onclick = () => track(v.video_id);
+      highlight(title, v.title);
+      const channel = div("channel");
+      channel.textContent = v.channel;
+      const stats = div("stats");
+      const views = document.createElement("span"); views.textContent = fmtViews(v.views);
+      const when = document.createElement("span"); when.textContent = ago(v.published_at);
+      stats.append(views, when);
+      const avatar = div("avatar");
+      const name = (v.channel || "?").trim();
+      let hue = 0; for (const ch of name) hue = (hue * 31 + ch.charCodeAt(0)) % 360;
+      avatar.textContent = name.charAt(0).toUpperCase();
+      avatar.style.background = "hsl(" + hue + ", 42%, 38%)";
+      const txt = div("txt");
+      txt.append(title, channel, stats);
+      info.append(avatar, txt);
+
+      card.append(wrap, info);
+      return card;
+    }
+
+    function showSkeleton() {
+      for (let i = 0; i < 8; i++) {
+        const s = div("card skel");
+        s.innerHTML = '<div class="box"></div><div class="line"></div><div class="line short"></div>';
+        grid.appendChild(s);
+      }
+    }
+
+    async function loadMore() {
+      if (loading || done) return;
+      loading = true;
+      const myGen = gen;
+      if (page === 1) showSkeleton(); else statusEl.textContent = "Loading more…";
+      const params = new URLSearchParams({ view, tab, topic, sub, q, page, seed, uid, subject: subj });
+      let videos;
+      try {
+        const res = await fetch("/api/videos?" + params);
+        videos = await res.json();
+      } catch (e) {
+        if (myGen === gen) {
+          loading = false;
+          grid.querySelectorAll(".skel").forEach(s => s.remove());
+          statusEl.textContent = "Couldn’t load videos. Is the server still running? ";
+          const retry = document.createElement("button");
+          retry.className = "pill"; retry.textContent = "Try again";
+          retry.onclick = () => { statusEl.textContent = ""; loadMore(); };
+          statusEl.appendChild(retry);
+        }
+        return;
+      }
+      if (myGen !== gen) return;
+      grid.querySelectorAll(".skel").forEach(s => s.remove());
+      videos.forEach(v => grid.appendChild(makeCard(v)));
+      page++;
+      statusEl.textContent = "";
+      if (videos.length < PER_PAGE) {
+        done = true;
+        statusEl.textContent = endMessage();
+      }
+      loading = false;
+      if (!done && statusEl.getBoundingClientRect().top < window.innerHeight + 600) loadMore();
+    }
+
+    function filterChip(text, onclick) {
+      const c = div("filterChip");
+      const t = document.createElement("span"); t.textContent = text;
+      const x = document.createElement("button");
+      x.textContent = "✕"; x.title = "Remove filter"; x.setAttribute("aria-label", "Remove filter: " + text);
+      x.onclick = onclick;
+      c.append(t, x);
+      return c;
+    }
+
+    function renderBars() {
+      document.querySelectorAll("#nav .navbtn").forEach(b => b.classList.toggle("active", b.dataset.key === view));
+      document.querySelectorAll("#tabs .pill").forEach(b => b.classList.toggle("active", b.dataset.key === tab));
+      tabsBar.style.display = view === "home" ? "flex" : "none";
+
+      if (view !== "home") headingEl.textContent = HEADINGS[view];
+      else if (q) headingEl.textContent = "Results for “" + q + "”";
+      else if (sub) headingEl.textContent = sub;
+      else if (topic) headingEl.textContent = topic;
+      else headingEl.textContent = "Top picks in " + curSubj()[1];
+      shuffleBtn.style.display = (view === "home" && !q) ? "" : "none";
+
+      $("hero").style.display = (view === "home" && !q && !topic) ? "" : "none";
+      renderShelf();
+      renderSubs();
+      const live = view !== "home" || curSubj()[2];
+      tabsBar.style.display = (view === "home" && live) ? "flex" : "none";
+      $("topicBtn").style.display = live ? "" : "none";
+      if (!live) { shuffleBtn.style.display = "none"; headingEl.textContent = curSubj()[1]; }
+      filterBar.innerHTML = "";
+      if (view === "home") {
+        if (topic) filterBar.append(filterChip(topic + (sub ? " › " + sub : ""), () => { topic = ""; sub = ""; startFeed(); }));
+        if (q) filterBar.append(filterChip("“" + q + "”", () => { q = ""; searchInput.value = ""; startFeed(); }));
+      }
+    }
+
+    function startFeed() {
+      seed = Math.floor(Math.random() * 1000000000);
+      page = 1; done = false; loading = false; gen++;
+      grid.innerHTML = "";
+      statusEl.textContent = "";
+      renderBars();
+      window.scrollTo(0, 0);
+      if (view === "home" && !curSubj()[2]) {
+        done = true;
+        statusEl.textContent = curSubj()[1] + " is coming soon. ";
+        const go = document.createElement("button");
+        go.className = "pill"; go.textContent = "Study Machine Learning meanwhile";
+        go.onclick = () => pickSubject("ml");
+        statusEl.appendChild(go);
+        return;
+      }
+      loadMore();
+    }
+
+    NAV.forEach(([key, label]) => {
+      const b = document.createElement("button");
+      b.className = "navbtn"; b.dataset.key = key; b.textContent = label;
+      b.onclick = () => { view = key; startFeed(); };
+      navBar.appendChild(b);
+    });
+    TABS.forEach(([key, label]) => {
+      const b = document.createElement("button");
+      b.className = "pill"; b.dataset.key = key; b.textContent = label;
+      b.onclick = () => { tab = key; startFeed(); };
+      tabsBar.appendChild(b);
+    });
+    shuffleBtn.onclick = () => startFeed();
+
+    // ----- search + recent searches -----
+    const RECENT_KEY = "recent_searches";
+    function getRecent() {
+      try { return JSON.parse(localStorage.getItem(RECENT_KEY)) || []; } catch (e) { return []; }
+    }
+    function saveRecent(text) {
+      if (!text) return;
+      const list = getRecent().filter(s => s.toLowerCase() !== text.toLowerCase());
+      list.unshift(text);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 8)));
+    }
+    function removeRecent(text) {
+      localStorage.setItem(RECENT_KEY, JSON.stringify(getRecent().filter(s => s !== text)));
+    }
+    function hideRecent() { suggBox.style.display = "none"; }
+    function showRecent() {
+      const typed = searchInput.value.trim().toLowerCase();
+      const list = getRecent().filter(s => s.toLowerCase().includes(typed));
+      suggBox.innerHTML = "";
+      if (!list.length) { hideRecent(); return; }
+      list.forEach(text => {
+        const row = div("sugg-item");
+        const icon = document.createElement("span"); icon.innerHTML = ICON.clock;
+        const label = document.createElement("span"); label.className = "label"; label.textContent = text;
+        const x = document.createElement("span"); x.className = "x"; x.textContent = "✕"; x.title = "Remove from recent searches";
+        x.onclick = e => { e.stopPropagation(); removeRecent(text); showRecent(); };
+        row.append(icon, label, x);
+        row.onclick = () => runSearch(text);
+        suggBox.appendChild(row);
+      });
+      suggBox.style.display = "block";
+    }
+    function runSearch(text) {
+      q = text.trim();
+      searchInput.value = q;
+      view = "home";
+      if (q) saveRecent(q);
+      hideRecent();
+      startFeed();
+    }
+    searchInput.addEventListener("keydown", e => {
+      if (e.key === "Enter") runSearch(searchInput.value);
+      if (e.key === "Escape") hideRecent();
+    });
+    searchInput.addEventListener("focus", showRecent);
+    searchInput.addEventListener("click", showRecent);
+    searchInput.addEventListener("input", showRecent);
+    document.addEventListener("click", e => { if (!searchBox.contains(e.target)) hideRecent(); });
+
+    // ----- topic drawer -----
+    function item(label, count, selected, onclick) {
+      const d = div("item" + (selected ? " sel" : ""));
+      const a = document.createElement("span"); a.textContent = label;
+      const c = document.createElement("span"); c.className = "count"; c.textContent = count;
+      d.append(a, c);
+      d.onclick = onclick;
+      return d;
+    }
+    function panelHead(text, withClose) {
+      const h = div("panelHead");
+      const t = document.createElement("h3"); t.textContent = text;
+      h.append(t);
+      if (withClose) {
+        const x = document.createElement("button");
+        x.textContent = "✕"; x.setAttribute("aria-label", "Close topics"); x.onclick = closeDrawer;
+        h.append(x);
+      }
+      return h;
+    }
+    function applyTopic(t, s) { topic = t; sub = s; view = "home"; closeDrawer(); startFeed(); }
+
+    function renderPanels() {
+      panel1.innerHTML = "";
+      panel1.append(panelHead(curSubj()[1], true));
+      panel1.append(item("All " + curSubj()[1], "", !topic, () => applyTopic("", "")));
+      tree.forEach(t => {
+        if (t.count) panel1.append(item(t.name, t.count, openTopic === t.name, () => { openTopic = t.name; renderPanels(); }));
+      });
+
+      if (openTopic) {
+        const t = tree.find(x => x.name === openTopic);
+        panel2.style.display = "block";
+        panel2.innerHTML = "";
+        panel2.append(panelHead(t.name, false));
+        panel2.append(item("All " + t.name, t.count, topic === t.name && !sub, () => applyTopic(t.name, "")));
+        t.subs.forEach(s => {
+          if (s.count) panel2.append(item(s.name, s.count, topic === t.name && sub === s.name, () => applyTopic(t.name, s.name)));
+        });
+      } else {
+        panel2.style.display = "none";
+      }
+    }
+    function openDrawer() { openTopic = topic || null; renderPanels(); overlay.classList.add("open"); drawer.classList.add("open"); }
+    function closeDrawer() { overlay.classList.remove("open"); drawer.classList.remove("open"); }
+    $("topicBtn").onclick = openDrawer;
+    overlay.onclick = closeDrawer;
+
+    // ----- theme and keyboard shortcuts -----
+    $("themeBtn").onclick = () => {
+      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("theme", next);
+    };
+    document.addEventListener("keydown", e => {
+      const tag = document.activeElement.tagName;
+      if (e.key === "/" && tag !== "INPUT" && tag !== "TEXTAREA") { e.preventDefault(); searchInput.focus(); }
+      if (e.key === "Escape") { closeDrawer(); hideRecent(); closeSubjects(); }
+    });
+
+    new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: "600px" }).observe(statusEl);
+
+    function renderShelf() {
+      const shelf = $("shelf");
+      shelf.innerHTML = "";
+      shelf.style.display = (view === "home" && curSubj()[2]) ? "flex" : "none";
+      const add = (label, t, s) => {
+        const b = document.createElement("button");
+        b.className = "stab" + ((topic === t) ? " on" : "");
+        b.textContent = label;
+        b.onclick = () => applyTopic(t, s);
+        shelf.append(b);
+      };
+      add("All", "", "");
+      tree.forEach(t => { if (t.count) add(t.name, t.name, ""); });
+    }
+    function renderSubs() {
+      const row = $("subrow");
+      row.innerHTML = "";
+      if (view !== "home" || !curSubj()[2] || !topic) return;
+      const t = tree.find(x => x.name === topic);
+      if (!t) return;
+      const add = (label, s2) => {
+        const b = document.createElement("button");
+        b.className = "pill" + (sub === s2 ? " active" : "");
+        b.textContent = label;
+        b.onclick = () => applyTopic(topic, s2);
+        row.append(b);
+      };
+      add("All " + topic, "");
+      t.subs.forEach(x => { if (x.count) add(x.name, x.name); });
+    }
+    function renderHero() {
+      const h = new Date().getHours();
+      $("hello").textContent = (h < 5 ? "Late night." : h < 12 ? "Good morning." : h < 18 ? "Good afternoon." : "Good evening.") +
+                               " What are you studying today?";
+      const n = curSubj()[2] ? tree.filter(t => t.count).length : 0;
+      $("sub").textContent = n ? "Pick one of " + n + " " + curSubj()[1] + " topics, or search for something specific." : "";
+    }
+    // ----- subject switcher (set ready to true when a subject has videos) -----
+    const SUBJECTS = [
+      ["ml", "Machine Learning", true], ["cyber", "Cybersecurity", false], ["data", "Data Analytics", false],
+      ["os", "Operating Systems", false], ["dsa", "Data Structures & Algorithms", false],
+      ["db", "Database & Management", false], ["geo", "Geopolitics", false], ["hist", "History", false],
+    ];
+    let subj = localStorage.getItem("subject") || "ml";
+    if (!SUBJECTS.some(x => x[0] === subj)) subj = "ml";
+    const curSubj = () => SUBJECTS.find(x => x[0] === subj);
+    const subjectBtn = $("subjectBtn"), subjectMenu = $("subjectMenu");
+
+    function renderSubjectMenu() {
+      subjectMenu.innerHTML = "";
+      SUBJECTS.forEach(([key, name, ready]) => {
+        const b = document.createElement("button");
+        b.className = "sopt" + (key === subj ? " sel" : "");
+        b.setAttribute("role", "menuitem");
+        const t = document.createElement("span"); t.textContent = name;
+        b.append(t);
+        if (!ready) { const tag = document.createElement("span"); tag.className = "soon"; tag.textContent = "Soon"; b.append(tag); }
+        b.onclick = () => pickSubject(key);
+        subjectMenu.appendChild(b);
+      });
+    }
+    function closeSubjects() { subjectMenu.classList.remove("open"); subjectBtn.setAttribute("aria-expanded", "false"); }
+    function pickSubject(key) {
+      closeSubjects();
+      if (key === subj) return;
+      subj = key; localStorage.setItem("subject", key);
+      topic = ""; sub = ""; q = ""; searchInput.value = ""; view = "home";
+      $("subjectName").textContent = curSubj()[1];
+      renderHero();
+      startFeed();
+    }
+    subjectBtn.onclick = () => {
+      if (subjectMenu.classList.contains("open")) { closeSubjects(); return; }
+      renderSubjectMenu(); subjectMenu.classList.add("open"); subjectBtn.setAttribute("aria-expanded", "true");
+    };
+    document.addEventListener("click", e => { if (!$("subjectWrap").contains(e.target)) closeSubjects(); });
+    $("subjectName").textContent = curSubj()[1];
+
+    renderHero();
+    fetch("/api/topics").then(r => r.json()).then(t => { tree = t; renderShelf(); renderHero(); });
+    startFeed();
+  </script>
+</body>
+</html>
