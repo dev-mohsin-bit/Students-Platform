@@ -16,9 +16,9 @@
 </script>
 <style>
   :root { --paper:#F4F6FB; --surface:#FFFFFF; --ink:#1B1F3B; --muted:#5F6685; --line:#D9DEEB;
-          --marker:#FFE15D; --on-marker:#1B1F3B; --skel:#E6EAF4; }
+          --marker:#ff5d6b; --on-marker:#1B1F3B; --skel:#E6EAF4; }
   [data-theme="dark"] { --paper:#151A2E; --surface:#1F2644; --ink:#ECEFFA; --muted:#9AA3C4; --line:#2E3658;
-                        --marker:#FFE15D; --on-marker:#1B1F3B; --skel:#262E50; }
+                        --marker:#ab5dff; --on-marker:#1B1F3B; --skel:#262E50; }
   * { box-sizing: border-box; }
   body { margin:0; padding:0 24px 48px; background:var(--paper); color:var(--ink); line-height:1.45;
          font-family:"Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif; font-optical-sizing:auto; }
@@ -84,6 +84,8 @@
 </style>
 </head>
 <body>
+  
+
   <div id="top">
     <header>
       <a id="back" href="/">← Videos</a>
@@ -112,7 +114,6 @@
     <div id="list"></div>
     <div id="status" aria-live="polite"></div>
   </div>
-
   <script>
     const PER_PAGE = 20;
     const SORTS = [["cited", "Most cited"], ["new", "Newest"]];
@@ -198,12 +199,15 @@
       loading = true;
       const myGen = gen;
       if (page === 1) showSkeleton(); else statusEl.textContent = "Loading more…";
-     let sort = "cited", kind = "all", topOnly = false, topic = "", q = "";
+      const params = new URLSearchParams({ sort, kind, top: topOnly ? "1" : "0", topic, q, page });
       let papers;
       try {
         const res = await fetch("/api/papers?" + params);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         papers = await res.json();
+        if (!Array.isArray(papers)) throw new Error("Unexpected papers response");
       } catch (e) {
+        console.error("Failed to load papers:", e);
         if (myGen === gen) {
           loading = false;
           list.querySelectorAll(".skel").forEach(s => s.remove());
